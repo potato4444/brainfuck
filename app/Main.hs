@@ -1,7 +1,11 @@
+{-# LANGUAGE  LambdaCase #-}
+
 import Data.Word (Word8)
 import Data.List (foldl1')
 import Data.Maybe (listToMaybe)
 import System.Environment(getArgs)
+import Control.Monad.Trans.State
+import System.IO (isEOF, hSetBuffering, stdout, stdin, BufferMode(..))
 
 type Program = [Command]
 
@@ -32,6 +36,9 @@ backward (Tape (x:xs) y zs) = Tape xs x (y:zs)
 setCell :: a -> Tape a -> Tape a
 setCell x (Tape ys z ws) = Tape ys x ws
 
+getCell :: Tape a -> a
+getCell (Tape _ x _) = x
+
 modifyCell :: (a -> a) -> Tape a -> Tape a
 modifyCell f (Tape xs y zs) = Tape xs (f y) zs
 
@@ -61,49 +68,48 @@ parseLoop = (\(a,b) -> (Loop . parse $ a) : parse b) . go 1
 
 
 
-interpret :: Program -> String -> String
-interpret = interpret' $ initializeTape 0
+interpret :: Program -> IO ()
+interpret prog = evalStateT (interpret' prog) (initializeTape 0)
 
-interpret' :: BFTape -> Program -> String -> String
-interpret' tape prog input = (\(_, output, _) -> output)
-                           $ foldl1' composeSteps tapeTransforms tape input
+interpret' :: Program -> StateT BFTape IO ()
+interpret' prog  = sequence_ tapeTransforms
   where
     tapeTransforms = map step prog
 
-composeSteps :: (BFTape -> String -> (String, String, BFTape))
-             -> (BFTape -> String -> (String, String, BFTape))
-             -> (BFTape -> String -> (String, String, BFTape))
-composeSteps f g tape input =
-    let (input', out1, tape')  = f tape input
-        (input'', out2, tape'') = g tape' input'
-    in (input'', out1++out2, tape'')
+step :: Command -> StateT BFTape IO ()
+step Increment = StateT $ \tape ->
+    return ((), modifyCell (+1) tape)
+step Decrement = StateT $ \tape ->
+    return ((), modifyCell (subtract 1) tape)
+step Rightward = StateT $ \tape ->
+    return ((), forward tape)
+step Leftward  = StateT $ \tape ->
+    return ((), backward tape)
+step Output    = StateT $ \tape ->
+    putChar (toEnum . fromIntegral $ getCell tape) >> return ((), tape)
+step Input     = StateT $ \tape ->
+    isEOF >>= \case
+        True  -> return ((), setCell 0 tape)
+        False -> do
+            c <- getChar 
+            return ((), setCell (fromIntegral . fromEnum $ c) tape)
+step (Loop comms) = loop comms
 
-step :: Command -> BFTape -> String -> (String, String, BFTape)
-step Increment tape input = (input, "", modifyCell (+1) tape)
-step Decrement tape input = (input, "", modifyCell (subtract 1) tape)
-step Rightward tape input = (input, "", forward tape)
-step Leftward  tape input = (input, "", backward tape)
-step Output tape@(Tape _ x _) input = (input, [toEnum . fromIntegral $ x], tape)
-step Input tape (i:is) = (is, "", setCell (toEnum . fromEnum $ i) tape)
-step Input tape "" = ("", "", setCell 0 tape)
-step (Loop comms) tape input = loop comms tape input
-
-loop :: [Command] -> BFTape -> String -> (String, String, BFTape)
-loop comms = runLoop
-  where
-    tapeTransforms = map step comms
-    loopBody = foldl1' composeSteps tapeTransforms
-    runLoop tape@(Tape _ x _) input
-        | x == 0 = (input, "", tape)
-        | otherwise = composeSteps loopBody runLoop tape input
+loop :: Program -> StateT BFTape IO ()
+loop comms = do
+    tape <- get
+    if getCell tape == 0
+        then return ()
+        else interpret' comms >> loop comms
 
 
 main :: IO ()
 main = do
+    hSetBuffering stdout NoBuffering
+    hSetBuffering stdin NoBuffering
     args <- getArgs
     case listToMaybe args of
         Just file -> do
             program <- readFile file
-            input <- getContents
-            putStr $ interpret (parse program) input
+            interpret (parse program)
         Nothing -> putStr "usage: brainfuck file.bf\n"
