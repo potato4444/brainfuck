@@ -1,4 +1,6 @@
-{-# LANGUAGE  LambdaCase #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 import Data.Word (Word8)
 import Data.List (foldl1')
@@ -6,6 +8,7 @@ import Data.Maybe (listToMaybe)
 import System.Environment(getArgs)
 import Control.Monad.Trans.State
 import System.IO (isEOF, hSetBuffering, stdout, stdin, BufferMode(..))
+import Data.Proxy 
 
 type Program = [Command]
 
@@ -42,8 +45,6 @@ getCell (Tape _ x _) = x
 modifyCell :: (a -> a) -> Tape a -> Tape a
 modifyCell f (Tape xs y zs) = Tape xs (f y) zs
 
-type BFTape = Tape Word8
-
 parse :: String -> Program
 parse ('+':xs) = Increment : parse xs
 parse ('-':xs) = Decrement : parse xs
@@ -68,15 +69,15 @@ parseLoop = (\(a,b) -> (Loop . parse $ a) : parse b) . go 1
 
 
 
-interpret :: Program -> IO ()
-interpret prog = evalStateT (interpret' prog) (initializeTape 0)
+interpret :: forall a. Integral a => Proxy a -> Program -> IO ()
+interpret proxy prog = evalStateT (interpret' prog) (initializeTape (0::a))
 
-interpret' :: Program -> StateT BFTape IO ()
+interpret' :: (Integral a) => Program -> StateT (Tape a) IO ()
 interpret' prog  = sequence_ tapeTransforms
   where
     tapeTransforms = map step prog
 
-step :: Command -> StateT BFTape IO ()
+step :: Integral a => Command -> StateT (Tape a) IO ()
 step Increment = StateT $ \tape ->
     return ((), modifyCell (+1) tape)
 step Decrement = StateT $ \tape ->
@@ -95,7 +96,7 @@ step Input     = StateT $ \tape ->
             return ((), setCell (fromIntegral . fromEnum $ c) tape)
 step (Loop comms) = loop comms
 
-loop :: Program -> StateT BFTape IO ()
+loop :: Integral a => Program -> StateT (Tape a) IO ()
 loop comms = do
     tape <- get
     if getCell tape == 0
@@ -111,5 +112,5 @@ main = do
     case listToMaybe args of
         Just file -> do
             program <- readFile file
-            interpret (parse program)
+            interpret (Proxy @Word8) (parse program)
         Nothing -> putStr "usage: brainfuck file.bf\n"
