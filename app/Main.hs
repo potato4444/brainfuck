@@ -29,11 +29,10 @@ data Command
 
 data Tape a = Tape [a] a [a]
 
-instance Functor Tape where
-  fmap f (Tape xs y zs) = Tape (fmap f xs) (f y) (fmap f zs)
-
 initializeTape :: a -> Tape a
-initializeTape x = x <$ Tape [1..] 1 [1..]
+initializeTape x = Tape xs x xs
+  where
+    xs = x:xs
 
 forward :: Tape a -> Tape a
 forward (Tape xs y (z:zs)) = Tape (y:xs) z zs
@@ -119,5 +118,5 @@ main = do
             case maybeCellSize of
                 Nothing -> putStrLn "Cell size must be postive"
                 Just (SomeNat (_ :: Proxy cellSize)) ->
-                    interpret (Proxy @(Integer/cellSize)) (parse program) 
+                    interpret (Proxy @(Integer/cellSize)) (parse program)
         _  -> putStrLn "usage: brainfuck [modulus] file.bf"
