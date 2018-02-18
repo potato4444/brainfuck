@@ -4,7 +4,7 @@ A brainfuck interpreter written in haskell as my first "practical" program. This
 
 ## Building
 
-The easiest way to build the interprete is to clone the reprository and then issue the command
+The easiest way to build the interpreter is to clone the reprository and then issue the command
 
     stack build
 
@@ -19,4 +19,4 @@ The interpreter takes a filename and optionally a cell size as arguments. Exampl
     ./brainfuck 8 helloworld.bf
     ./brainfuck primes.bf
 
-Not including a cell size will mean that unbounded cells are used
+Not including a cell size will mean that unbounded cells are used.
