@@ -25,6 +25,5 @@ executable brainfuck
   build-depends:
       base >=4.7 && <5
     , transformers
-  other-modules:
-      Paths_brainfuck
+    , modular-arithmetic >=1.2 && <1.3
   default-language: Haskell2010

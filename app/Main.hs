@@ -1,14 +1,19 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
 
-import Data.Word (Word8)
-import Data.List (foldl1')
-import Data.Maybe (listToMaybe)
-import System.Environment(getArgs)
+
 import Control.Monad.Trans.State
+import Data.Maybe (listToMaybe)
+import Data.Modular
+import Data.Proxy
+import GHC.TypeLits (someNatVal, SomeNat(..))
+import System.Environment(getArgs)
 import System.IO (isEOF, hSetBuffering, stdout, stdin, BufferMode(..))
-import Data.Proxy 
+import Text.Read (readMaybe)
+
 
 type Program = [Command]
 
@@ -83,7 +88,7 @@ step Decrement = StateT $ \tape -> return ((), modifyCell (subtract 1) tape)
 step Rightward = StateT $ \tape -> return ((), forward tape)
 step Leftward  = StateT $ \tape -> return ((), backward tape)
 step Output    = StateT $ \tape ->
-    putChar (toEnum . fromIntegral $ getCell tape) >> return ((), tape)
+    putChar (toEnum . (+32) . fromIntegral $ getCell tape) >> return ((), tape)
 step Input = StateT $ \tape -> isEOF >>= \case
     True  -> return ((), setCell 0 tape)
     False -> do
@@ -104,8 +109,15 @@ main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stdin NoBuffering
     args <- getArgs
-    case listToMaybe args of
-        Just file -> do
+    case args of
+        [file] -> do
             program <- readFile file
-            interpret (Proxy @Word8) (parse program)
-        Nothing -> putStr "usage: brainfuck file.bf\n"
+            interpret (Proxy @Integer) (parse program)
+        [cellSizeString,file] -> do
+            program <- readFile file
+            let maybeCellSize = someNatVal =<< readMaybe @Integer cellSizeString
+            case maybeCellSize of
+                Nothing -> putStrLn "Cell size must be postive"
+                Just (SomeNat (_ :: Proxy cellSize)) ->
+                    interpret (Proxy @(Integer/cellSize)) (parse program) 
+        _  -> putStrLn "usage: brainfuck [modulus] file.bf"

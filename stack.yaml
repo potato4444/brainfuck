@@ -2,3 +2,6 @@ resolver: lts-10.5
 
 packages:
 - .
+
+extra-deps:
+- modular-arithmetic-1.2.1.2
