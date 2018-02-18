@@ -78,22 +78,17 @@ interpret' prog  = sequence_ tapeTransforms
     tapeTransforms = map step prog
 
 step :: Integral a => Command -> StateT (Tape a) IO ()
-step Increment = StateT $ \tape ->
-    return ((), modifyCell (+1) tape)
-step Decrement = StateT $ \tape ->
-    return ((), modifyCell (subtract 1) tape)
-step Rightward = StateT $ \tape ->
-    return ((), forward tape)
-step Leftward  = StateT $ \tape ->
-    return ((), backward tape)
+step Increment = StateT $ \tape -> return ((), modifyCell (+ 1) tape)
+step Decrement = StateT $ \tape -> return ((), modifyCell (subtract 1) tape)
+step Rightward = StateT $ \tape -> return ((), forward tape)
+step Leftward  = StateT $ \tape -> return ((), backward tape)
 step Output    = StateT $ \tape ->
     putChar (toEnum . fromIntegral $ getCell tape) >> return ((), tape)
-step Input     = StateT $ \tape ->
-    isEOF >>= \case
-        True  -> return ((), setCell 0 tape)
-        False -> do
-            c <- getChar 
-            return ((), setCell (fromIntegral . fromEnum $ c) tape)
+step Input = StateT $ \tape -> isEOF >>= \case
+    True  -> return ((), setCell 0 tape)
+    False -> do
+        c <- getChar
+        return ((), setCell (fromIntegral . fromEnum $ c) tape)
 step (Loop comms) = loop comms
 
 loop :: Integral a => Program -> StateT (Tape a) IO ()
