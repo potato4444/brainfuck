@@ -88,7 +88,7 @@ step Decrement = StateT $ \tape -> return ((), modifyCell (subtract 1) tape)
 step Rightward = StateT $ \tape -> return ((), forward tape)
 step Leftward  = StateT $ \tape -> return ((), backward tape)
 step Output    = StateT $ \tape ->
-    putChar (toEnum . (+32) . fromIntegral $ getCell tape) >> return ((), tape)
+    putChar (toEnum  . fromIntegral $ getCell tape) >> return ((), tape)
 step Input = StateT $ \tape -> isEOF >>= \case
     True  -> return ((), setCell 0 tape)
     False -> do
