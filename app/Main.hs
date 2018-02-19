@@ -4,7 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
-
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 import Data.Maybe (listToMaybe)
 import Data.Modular
@@ -77,22 +77,20 @@ interpret :: forall a. Integral a => Proxy a -> Program -> IO ()
 interpret proxy prog = evalStateT (interpret' prog) (initializeTape (0::a))
 
 interpret' :: (Integral a) => Program -> StateT (Tape a) IO ()
-interpret' prog  = sequence_ tapeTransforms
-  where
-    tapeTransforms = map step prog
+interpret' = mapM_ step
 
 step :: Integral a => Command -> StateT (Tape a) IO ()
-step Increment = StateT $ \tape -> return ((), modifyCell (+ 1) tape)
-step Decrement = StateT $ \tape -> return ((), modifyCell (subtract 1) tape)
-step Rightward = StateT $ \tape -> return ((), forward tape)
-step Leftward  = StateT $ \tape -> return ((), backward tape)
-step Output    = StateT $ \tape ->
-    putChar (toEnum  . fromIntegral $ getCell tape) >> return ((), tape)
-step Input = StateT $ \tape -> isEOF >>= \case
-    True  -> return ((), setCell 0 tape)
+step Increment = modify (modifyCell (+1))
+step Decrement = modify (modifyCell (subtract 1))
+step Rightward = modify forward 
+step Leftward  = modify backward
+step Output    = get >>= \tape ->
+    lift $ putChar (toEnum  . fromIntegral $ getCell tape)
+step Input = lift isEOF >>= \case
+    True  -> modify (setCell 0)
     False -> do
-        c <- getChar
-        return ((), setCell (fromIntegral . fromEnum $ c) tape)
+        c <- lift getChar
+        modify (setCell (fromIntegral . fromEnum $ c))
 step (Loop comms) = loop comms
 
 loop :: Integral a => Program -> StateT (Tape a) IO ()
@@ -100,7 +98,7 @@ loop comms = do
     tape <- get
     if getCell tape == 0
         then return ()
-        else interpret' comms >> loop comms
+        else interpret' comms *> loop comms
 
 
 main :: IO ()
