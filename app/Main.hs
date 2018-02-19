@@ -9,7 +9,7 @@ import Control.Monad.Trans.State
 import Data.Maybe (listToMaybe)
 import Data.Modular
 import Data.Proxy
-import GHC.TypeLits (someNatVal, SomeNat(..))
+import GHC.TypeLits (natVal, someNatVal, SomeNat(..))
 import System.Environment(getArgs)
 import System.IO (isEOF, hSetBuffering, stdout, stdin, BufferMode(..))
 import Text.Read (readMaybe)
@@ -114,7 +114,9 @@ main = do
             program <- readFile file
             let maybeCellSize = someNatVal =<< readMaybe @Integer cellSizeString
             case maybeCellSize of
-                Nothing -> putStrLn "Cell size must be postive"
-                Just (SomeNat (_ :: Proxy cellSize)) ->
-                    interpret (Proxy @(Integer/cellSize)) (parse program)
+                Nothing -> putStrLn "Cell size must be a postive integer"
+                Just (SomeNat (sizeProxy :: Proxy cellSize)) ->
+                    if natVal sizeProxy == 0
+                        then putStrLn "Cell size cannot be zero"
+                        else interpret (Proxy @(Integer/cellSize)) (parse program)
         _  -> putStrLn "usage: brainfuck [modulus] file.bf"
