@@ -10,6 +10,7 @@ import Control.Monad.Trans.State
 import Data.Maybe (listToMaybe)
 import Data.Modular
 import Data.Proxy
+import Data.Word (Word64)
 import GHC.TypeLits (natVal, someNatVal, SomeNat(..))
 import System.Environment(getArgs)
 import System.IO (isEOF, hSetBuffering, stdout, stdin, BufferMode(..))
@@ -122,7 +123,8 @@ main = do
             case maybeCellSize of
                 Nothing -> putStrLn "Cell size must be a postive integer"
                 Just (SomeNat (sizeProxy :: Proxy cellSize)) ->
-                    if natVal sizeProxy == 0
-                        then putStrLn "Cell size cannot be zero"
-                        else interpret (Proxy @(Integer/cellSize)) (parse program)
+                    case natVal sizeProxy of
+                        0 -> putStrLn "Cell size cannot be zero"
+                        n | n < 2^64  -> interpret (Proxy @(Word64/cellSize)) (parse program)
+                          | otherwise -> interpret (Proxy @(Integer/cellSize)) (parse program)
         _  -> putStrLn "usage: brainfuck [modulus] file.bf"
