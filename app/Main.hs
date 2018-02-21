@@ -86,17 +86,17 @@ interpret' :: (Integral a) => Program -> StateT (Tape a) IO ()
 interpret' = mapM_ step
 
 step :: Integral a => Command -> StateT (Tape a) IO ()
-step Increment = modify (modifyCell' (+1))
-step Decrement = modify (modifyCell' (subtract 1))
-step Rightward = modify forward 
-step Leftward  = modify backward
+step Increment = modify' (modifyCell' (+1))
+step Decrement = modify' (modifyCell' (subtract 1))
+step Rightward = modify' forward 
+step Leftward  = modify' backward
 step Output    = get >>= \tape ->
-    lift $ putChar (toEnum  . fromIntegral $ getCell tape)
+    lift $ putChar (toEnum . fromIntegral $ getCell tape)
 step Input = lift isEOF >>= \case
-    True  -> modify (setCell 0)
+    True  -> modify' (setCell 0)
     False -> do
         c <- lift getChar
-        modify (setCell (fromIntegral . fromEnum $ c))
+        modify' (setCell (fromIntegral . fromEnum $ c))
 step (Loop comms) = loop comms
 
 loop :: Integral a => Program -> StateT (Tape a) IO ()
