@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE BangPatterns #-}
 
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
@@ -49,6 +50,11 @@ getCell (Tape _ x _) = x
 modifyCell :: (a -> a) -> Tape a -> Tape a
 modifyCell f (Tape xs y zs) = Tape xs (f y) zs
 
+modifyCell' :: (a -> a) -> Tape a -> Tape a
+modifyCell' f (Tape xs y zs) = Tape xs y' zs
+  where
+    !y' = f y
+
 parse :: String -> Program
 parse ('+':xs) = Increment : parse xs
 parse ('-':xs) = Decrement : parse xs
@@ -80,8 +86,8 @@ interpret' :: (Integral a) => Program -> StateT (Tape a) IO ()
 interpret' = mapM_ step
 
 step :: Integral a => Command -> StateT (Tape a) IO ()
-step Increment = modify (modifyCell (+1))
-step Decrement = modify (modifyCell (subtract 1))
+step Increment = modify (modifyCell' (+1))
+step Decrement = modify (modifyCell' (subtract 1))
 step Rightward = modify forward 
 step Leftward  = modify backward
 step Output    = get >>= \tape ->
